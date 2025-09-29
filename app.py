@@ -4,7 +4,7 @@ from flask import Flask, request, render_template, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import anthropic
 from dotenv import load_dotenv
-from PIL import Image
+# from PIL import Image  # Removed to avoid deployment issues
 from notion_client import Client
 from datetime import datetime, timedelta
 import json
@@ -28,15 +28,17 @@ def encode_image_to_base64(image_path):
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 def get_image_type(image_path):
-    with Image.open(image_path) as img:
-        format_map = {
-            'JPEG': 'jpeg',
-            'PNG': 'png',
-            'GIF': 'gif',
-            'BMP': 'bmp',
-            'WEBP': 'webp'
-        }
-        return format_map.get(img.format, 'jpeg')
+    # Simple file extension based detection
+    ext = os.path.splitext(image_path)[1].lower()
+    ext_map = {
+        '.jpg': 'jpeg',
+        '.jpeg': 'jpeg', 
+        '.png': 'png',
+        '.gif': 'gif',
+        '.bmp': 'bmp',
+        '.webp': 'webp'
+    }
+    return ext_map.get(ext, 'jpeg')
 
 def get_uploaded_images(group):
     folder_path = os.path.join(app.config['UPLOAD_FOLDER'], group)
