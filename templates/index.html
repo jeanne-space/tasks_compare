@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB 테이블 구조 비교 봇</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 GAT Weekly Tasks Report</h1>
+            <p>월요일과 금요일의 업무 목록을 캡처하여 분석하세요</p>
+        </header>
+
+        <div class="upload-section">
+            <div class="group-container">
+                <div class="group-box">
+                    <h3>📅 월요일</h3>
+                    <div class="date-selector">
+                        <div class="date-dropdown" id="monday-date-dropdown">
+                            <button class="date-button" id="monday-date-button">
+                                <span id="monday-selected-date">날짜 선택</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div class="calendar-popup" id="monday-calendar">
+                                <div class="calendar-header">
+                                    <button class="calendar-nav" id="monday-prev-month">‹</button>
+                                    <span class="calendar-title" id="monday-month-year"></span>
+                                    <button class="calendar-nav" id="monday-next-month">›</button>
+                                </div>
+                                <div class="calendar-grid" id="monday-calendar-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="upload-area drop-zone" id="monday-upload" data-group="monday">
+                        <input type="file" id="monday-file" accept="image/*" multiple>
+                        <label for="monday-file">
+                            <div class="upload-text">
+                                <div class="drop-icon">📁</div>
+                                <span>클릭 또는 드래그</span>
+                                <small>PNG, JPG, GIF, BMP, WEBP</small>
+                            </div>
+                        </label>
+                        <div class="drop-overlay">
+                            <div class="drop-content">
+                                <div class="drop-icon">⬇️</div>
+                                <span>여기에 파일을 놓으세요</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="image-list">
+                        {% for image in monday_images %}
+                        <div class="image-item">{{ image }}</div>
+                        {% endfor %}
+                    </div>
+                    <button class="clear-btn" onclick="clearGroup('monday')">초기화</button>
+                </div>
+
+                <div class="group-box">
+                    <h3>🎉 금요일</h3>
+                    <div class="date-selector">
+                        <div class="date-dropdown" id="friday-date-dropdown">
+                            <button class="date-button" id="friday-date-button">
+                                <span id="friday-selected-date">날짜 선택</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div class="calendar-popup" id="friday-calendar">
+                                <div class="calendar-header">
+                                    <button class="calendar-nav" id="friday-prev-month">‹</button>
+                                    <span class="calendar-title" id="friday-month-year"></span>
+                                    <button class="calendar-nav" id="friday-next-month">›</button>
+                                </div>
+                                <div class="calendar-grid" id="friday-calendar-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="upload-area drop-zone" id="friday-upload" data-group="friday">
+                        <input type="file" id="friday-file" accept="image/*" multiple>
+                        <label for="friday-file">
+                            <div class="upload-text">
+                                <div class="drop-icon">📁</div>
+                                <span>클릭 또는 드래그</span>
+                                <small>PNG, JPG, GIF, BMP, WEBP</small>
+                            </div>
+                        </label>
+                        <div class="drop-overlay">
+                            <div class="drop-content">
+                                <div class="drop-icon">⬇️</div>
+                                <span>여기에 파일을 놓으세요</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="image-list">
+                        {% for image in friday_images %}
+                        <div class="image-item">{{ image }}</div>
+                        {% endfor %}
+                    </div>
+                    <button class="clear-btn" onclick="clearGroup('friday')">초기화</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-section">
+            <button id="compare-btn" class="compare-btn">🔍 분석 시작</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Claude가 업무 목록을 분석하고 있습니다...</p>
+        </div>
+
+        <div id="result-section" class="result-section hidden">
+            <!-- 노션 DB 분석 영역 - 임시 숨김 -->
+            <div id="notion-analysis" class="notion-analysis" style="display: none;">
+                <h3>📊 DB 직접 분석</h3>
+                <div class="notion-controls">
+                    <button id="notion-analyze-btn" class="notion-btn">🔍 노션 DB 분석 시작</button>
+                </div>
+                <div id="notion-loading" class="notion-loading hidden">
+                    <div class="spinner"></div>
+                    <p>노션 데이터베이스를 분석하고 있습니다...</p>
+                </div>
+                <div id="notion-results" class="notion-results hidden">
+                    <div class="notion-summary">
+                        <div class="summary-card">
+                            <h4>📅 월요일</h4>
+                            <div class="task-count" id="monday-task-count">0</div>
+                            <span>개 업무</span>
+                        </div>
+                        <div class="summary-card">
+                            <h4>🎉 금요일</h4>
+                            <div class="task-count" id="friday-task-count">0</div>
+                            <span>개 업무</span>
+                        </div>
+                    </div>
+                    
+                    <div class="notion-charts">
+                        <div class="chart-container">
+                            <h4>📈 상태별 업무 변화</h4>
+                            <div id="status-chart" class="chart-content"></div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h4>🎯 우선순위 분포</h4>
+                            <div id="priority-chart" class="chart-content"></div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h4>📂 카테고리별 업무</h4>
+                            <div id="category-chart" class="chart-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="image-comparison" class="image-comparison hidden">
+                <h3>🔍 이미지로 보기</h3>
+                <div class="comparison-container">
+                    <div class="comparison-group">
+                        <h4>📅 월요일</h4>
+                        <div id="monday-images-display" class="images-display"></div>
+                    </div>
+                    <div class="comparison-group">
+                        <h4>🎉 금요일</h4>
+                        <div id="friday-images-display" class="images-display"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-divider"></div>
+            
+            <h2>📊 분석 결과</h2>
+            <div class="date-range-info" id="date-range-info">
+                <span id="date-range-text">날짜를 선택해주세요</span>
+            </div>
+            <div id="analysis-result"></div>
+        </div>
+    </div>
+
+    <div id="message" class="message hidden"></div>
+
+    <script>
+        function uploadImages(group, files) {
+            const formData = new FormData();
+            
+            Array.from(files).forEach(file => {
+                formData.append('file', file);
+                formData.append('group', group);
+                
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage(data.message, 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showMessage(data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('업로드 중 오류가 발생했습니다.', 'error');
+                });
+            });
+        }
+
+        function clearGroup(group) {
+            if (confirm(`${group === 'monday' ? '월요일' : '금요일'}의 모든 이미지를 삭제하시겠습니까?`)) {
+                fetch(`/clear/${group}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage(data.message, 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showMessage(data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('삭제 중 오류가 발생했습니다.', 'error');
+                });
+            }
+        }
+
+        function compareImages() {
+            const loading = document.getElementById('loading');
+            const resultSection = document.getElementById('result-section');
+            const compareBtn = document.getElementById('compare-btn');
+
+            loading.classList.remove('hidden');
+            resultSection.classList.add('hidden');
+            compareBtn.disabled = true;
+
+            fetch('/compare', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.add('hidden');
+                compareBtn.disabled = false;
+
+                if (data.success) {
+                    const analysisResult = document.getElementById('analysis-result');
+                    
+                    // 분석 결과를 표 형태로 변환
+                    const tableHtml = convertAnalysisToTable(data.analysis, data.monday_count, data.friday_count);
+                    analysisResult.innerHTML = tableHtml;
+                    
+                    // 이미지 비교 섹션 표시
+                    displayImageComparison(data.monday_images, data.friday_images);
+                    
+                    resultSection.classList.remove('hidden');
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                loading.classList.add('hidden');
+                compareBtn.disabled = false;
+                showMessage('분석 중 오류가 발생했습니다.', 'error');
+            });
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.classList.remove('hidden');
+
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 3000);
+        }
+
+        // 드래그 앤 드롭 기능
+        function setupDropZone(dropZone) {
+            const group = dropZone.dataset.group;
+            const fileInput = dropZone.querySelector('input[type="file"]');
+            const dropOverlay = dropZone.querySelector('.drop-overlay');
+
+            // 드래그 이벤트 방지
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            // 드래그 진입/벗어남 시각 효과
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.add('drag-over');
+                    dropOverlay.style.display = 'flex';
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.remove('drag-over');
+                    dropOverlay.style.display = 'none';
+                }, false);
+            });
+
+            // 드롭 처리
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    uploadImages(group, files);
+                }
+            }
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // 파일 선택 이벤트
+        document.getElementById('monday-file').addEventListener('change', function(e) {
+            uploadImages('monday', e.target.files);
+        });
+
+        document.getElementById('friday-file').addEventListener('change', function(e) {
+            uploadImages('friday', e.target.files);
+        });
+
+        // 분석 결과를 표 형태로 변환하는 함수
+        function convertAnalysisToTable(analysis, mondayCount, fridayCount) {
+            // "네, 두 이미지를 비교 분석해드리겠습니다" 문구 제거
+            analysis = analysis.replace(/네,?\s*두\s*이미지를?\s*비교\s*분석해?\s*드리겠습니다\.?\s*/gi, '');
+            
+            // 분석 결과를 4개 섹션으로 나누기 - 더 정확한 패턴 매칭
+            const sectionPattern = /(\d+)\.\s*\*\*([^*]+)\*\*:\s*([^]*?)(?=\d+\.\s*\*\*|$)/g;
+            const sections = [];
+            let match;
+            
+            while ((match = sectionPattern.exec(analysis)) !== null) {
+                sections.push({
+                    number: parseInt(match[1]),
+                    title: match[2].trim(),
+                    content: match[3].trim()
+                });
+            }
+            
+            const sectionTitles = [
+                '월요일 O, 금요일 X',
+                '월요일 X, 금요일 O', 
+                '진행률 변경',
+                '변동 없음 (조정/조율 고려)'
+            ];
+            
+            let tableHtml = `
+                <div class="analysis-table-container">
+                    <table class="analysis-table">
+                        <tbody>
+                            <tr class="title-row">
+            `;
+            
+            // 1행: 제목들
+            for (let i = 0; i < 4; i++) {
+                const title = sectionTitles[i];
+                tableHtml += `<th class="section-title">${title}</th>`;
+            }
+            
+            tableHtml += `
+                            </tr>
+                            <tr class="content-row">
+            `;
+            
+            // 2행: 내용들 - 섹션 번호에 맞게 정확히 매핑
+            for (let i = 0; i < 4; i++) {
+                const sectionNumber = i + 1;
+                const section = sections.find(s => s.number === sectionNumber);
+                let content = section ? section.content : '해당 없음';
+                
+                // 오타 수정
+                content = content.replace(/임사/g, '입사');
+                content = content.replace(/운보딩/g, '온보딩');
+                
+                // 진행률 형식 통일: "- 90% 진행" → "(90%)"
+                content = content.replace(/- (\d+)% 진행/g, '($1%)');
+                content = content.replace(/- (\d+)%\s*진행/g, '($1%)');
+                
+                // "업무명: n% → m% 진행" → "업무명 (n% -> m%)"
+                content = content.replace(/([^:]+):\s*(\d+)%\s*→\s*(\d+)%\s*진행/g, '$1 ($2% -> $3%)');
+                
+                // "- [번호-] 업무명 - 진행률" → "• 업무명 (진행률)"
+                content = content.replace(/- \[([^\]]*)\] ([^-]+) - (\d+)% 진행/g, '• $2 ($3%)');
+                content = content.replace(/- \[([^\]]*)\] ([^-]+) - (\d+)%\s*진행/g, '• $2 ($3%)');
+                
+                // 모든 하이픈을 bullet으로 변경
+                content = content.replace(/^- /gm, '• ');
+                content = content.replace(/<br>- /g, '<br>• ');
+                
+                // 줄바꿈을 <br>로 변환
+                content = content.replace(/\n/g, '<br>');
+                
+                tableHtml += `<td class="section-content">${content}</td>`;
+            }
+            
+            tableHtml += `
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            return tableHtml;
+        }
+
+        // 이미지 비교 표시 함수
+        function displayImageComparison(mondayImages, fridayImages) {
+            const mondayDisplay = document.getElementById('monday-images-display');
+            const fridayDisplay = document.getElementById('friday-images-display');
+            const imageComparison = document.getElementById('image-comparison');
+            
+            // 월요일 이미지 표시
+            mondayDisplay.innerHTML = '';
+            mondayImages.forEach((img, index) => {
+                const container = createImageContainer(img, 'monday', index);
+                mondayDisplay.appendChild(container);
+            });
+            
+            // 금요일 이미지 표시
+            fridayDisplay.innerHTML = '';
+            fridayImages.forEach((img, index) => {
+                const container = createImageContainer(img, 'friday', index);
+                fridayDisplay.appendChild(container);
+            });
+            
+            imageComparison.classList.remove('hidden');
+        }
+        
+        function createImageContainer(imageData, group, index) {
+            const container = document.createElement('div');
+            container.className = 'image-container';
+            container.id = `${group}-image-${index}`;
+            
+            container.innerHTML = `
+                <div class="image-title">${imageData.filename}</div>
+                <img src="${imageData.path}" alt="${imageData.filename}">
+            `;
+            
+            
+            return container;
+        }
+        
+        
+        
+
+        // 달력 기능
+        class Calendar {
+            constructor(prefix) {
+                this.prefix = prefix;
+                this.currentDate = new Date();
+                this.selectedDate = null;
+                this.isOpen = false;
+                this.storageKey = `calendar_${prefix}_date`;
+                this.init();
+                this.loadSavedDate();
+            }
+
+            init() {
+                const button = document.getElementById(`${this.prefix}-date-button`);
+                const calendar = document.getElementById(`${this.prefix}-calendar`);
+                const prevBtn = document.getElementById(`${this.prefix}-prev-month`);
+                const nextBtn = document.getElementById(`${this.prefix}-next-month`);
+
+                button.addEventListener('click', () => this.toggleCalendar());
+                prevBtn.addEventListener('click', () => this.prevMonth());
+                nextBtn.addEventListener('click', () => this.nextMonth());
+
+                // 외부 클릭 시 달력 닫기
+                document.addEventListener('click', (e) => {
+                    if (!document.getElementById(`${this.prefix}-date-dropdown`).contains(e.target)) {
+                        this.closeCalendar();
+                    }
+                });
+
+                this.render();
+            }
+
+            toggleCalendar() {
+                this.isOpen = !this.isOpen;
+                const calendar = document.getElementById(`${this.prefix}-calendar`);
+                calendar.style.display = this.isOpen ? 'block' : 'none';
+            }
+
+            closeCalendar() {
+                this.isOpen = false;
+                const calendar = document.getElementById(`${this.prefix}-calendar`);
+                calendar.style.display = 'none';
+            }
+
+            prevMonth() {
+                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                this.render();
+            }
+
+            nextMonth() {
+                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                this.render();
+            }
+
+            getWeekNumber(date) {
+                const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+                const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+                return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+            }
+
+            render() {
+                const monthYear = document.getElementById(`${this.prefix}-month-year`);
+                const grid = document.getElementById(`${this.prefix}-calendar-grid`);
+
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+
+                monthYear.textContent = `${year}년 ${month + 1}월`;
+
+                // 달력 그리드 생성
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay()); // 일요일부터 시작
+
+                let html = '<div class="calendar-weekdays">';
+                const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+                weekdays.forEach(day => {
+                    html += `<div class="weekday">${day}</div>`;
+                });
+                html += '</div><div class="calendar-dates">';
+
+                for (let i = 0; i < 42; i++) { // 6주
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + i);
+                    
+                    const isCurrentMonth = date.getMonth() === month;
+                    const isToday = date.toDateString() === new Date().toDateString();
+                    const isSelected = this.selectedDate && date.toDateString() === this.selectedDate.toDateString();
+                    
+                    let classes = ['calendar-date'];
+                    if (!isCurrentMonth) classes.push('other-month');
+                    if (isToday) classes.push('today');
+                    if (isSelected) classes.push('selected');
+
+                    const weekNum = this.getWeekNumber(date);
+                    
+                    html += `<div class="${classes.join(' ')}" data-date="${date.toISOString()}" title="주차: ${weekNum}">
+                        ${date.getDate()}
+                    </div>`;
+                }
+                html += '</div>';
+
+                grid.innerHTML = html;
+
+                // 날짜 클릭 이벤트
+                grid.querySelectorAll('.calendar-date').forEach(dateEl => {
+                    dateEl.addEventListener('click', () => {
+                        const date = new Date(dateEl.dataset.date);
+                        this.selectDate(date);
+                    });
+                });
+            }
+
+            selectDate(date) {
+                this.selectedDate = date;
+                const weekNum = this.getWeekNumber(date);
+                const formattedDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} (${weekNum}주차)`;
+                
+                document.getElementById(`${this.prefix}-selected-date`).textContent = formattedDate;
+                this.closeCalendar();
+                this.render();
+                
+                // localStorage에 날짜 저장
+                this.saveDate(date);
+                
+                // 날짜 범위 업데이트
+                updateDateRange();
+            }
+
+            saveDate(date) {
+                localStorage.setItem(this.storageKey, date.toISOString());
+            }
+
+            loadSavedDate() {
+                const savedDate = localStorage.getItem(this.storageKey);
+                if (savedDate) {
+                    const date = new Date(savedDate);
+                    this.selectedDate = date;
+                    this.currentDate = new Date(date.getFullYear(), date.getMonth(), 1);
+                    
+                    const weekNum = this.getWeekNumber(date);
+                    const formattedDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} (${weekNum}주차)`;
+                    document.getElementById(`${this.prefix}-selected-date`).textContent = formattedDate;
+                    
+                    // 로드 완료 후 날짜 범위 업데이트를 위해 약간의 지연
+                    setTimeout(() => {
+                        updateDateRange();
+                    }, 100);
+                }
+            }
+        }
+
+        // 날짜 범위 업데이트 함수
+        function updateDateRange() {
+            const mondayDate = mondayCalendar.selectedDate;
+            const fridayDate = fridayCalendar.selectedDate;
+            const dateRangeText = document.getElementById('date-range-text');
+            
+            if (mondayDate && fridayDate) {
+                const startDate = mondayDate <= fridayDate ? mondayDate : fridayDate;
+                const endDate = mondayDate <= fridayDate ? fridayDate : mondayDate;
+                
+                const startWeek = mondayCalendar.getWeekNumber(startDate);
+                const endWeek = mondayCalendar.getWeekNumber(endDate);
+                
+                const startStr = `${startDate.getFullYear()}/${startDate.getMonth() + 1}/${startDate.getDate()}`;
+                const endStr = `${endDate.getFullYear()}/${endDate.getMonth() + 1}/${endDate.getDate()}`;
+                
+                if (startWeek === endWeek) {
+                    dateRangeText.textContent = `${startStr}~${endStr} (${startWeek}주차)`;
+                } else {
+                    dateRangeText.textContent = `${startStr}~${endStr} (${startWeek}~${endWeek}주차)`;
+                }
+            } else if (mondayDate) {
+                const weekNum = mondayCalendar.getWeekNumber(mondayDate);
+                const dateStr = `${mondayDate.getFullYear()}/${mondayDate.getMonth() + 1}/${mondayDate.getDate()}`;
+                dateRangeText.textContent = `월요일: ${dateStr} (${weekNum}주차)`;
+            } else if (fridayDate) {
+                const weekNum = fridayCalendar.getWeekNumber(fridayDate);
+                const dateStr = `${fridayDate.getFullYear()}/${fridayDate.getMonth() + 1}/${fridayDate.getDate()}`;
+                dateRangeText.textContent = `금요일: ${dateStr} (${weekNum}주차)`;
+            } else {
+                dateRangeText.textContent = '날짜를 선택해주세요';
+            }
+        }
+
+        // 달력 인스턴스 생성
+        const mondayCalendar = new Calendar('monday');
+        const fridayCalendar = new Calendar('friday');
+
+        // 드롭존 초기화
+        document.querySelectorAll('.drop-zone').forEach(setupDropZone);
+
+        // 노션 분석 함수
+        function analyzeNotionData() {
+            const mondayDate = mondayCalendar.selectedDate;
+            const fridayDate = fridayCalendar.selectedDate;
+            
+            if (!mondayDate || !fridayDate) {
+                showMessage('월요일과 금요일 날짜를 모두 선택해주세요.', 'error');
+                return;
+            }
+            
+            const notionLoading = document.getElementById('notion-loading');
+            const notionResults = document.getElementById('notion-results');
+            const notionBtn = document.getElementById('notion-analyze-btn');
+            
+            notionLoading.classList.remove('hidden');
+            notionResults.classList.add('hidden');
+            notionBtn.disabled = true;
+            
+            // 날짜를 YYYY-MM-DD 형식으로 변환
+            const mondayStr = mondayDate.toISOString().split('T')[0];
+            const fridayStr = fridayDate.toISOString().split('T')[0];
+            
+            fetch('/notion-analysis', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    monday_date: mondayStr,
+                    friday_date: fridayStr
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                notionLoading.classList.add('hidden');
+                notionBtn.disabled = false;
+                
+                if (data.success) {
+                    displayNotionResults(data.analysis);
+                    notionResults.classList.remove('hidden');
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                notionLoading.classList.add('hidden');
+                notionBtn.disabled = false;
+                showMessage('노션 분석 중 오류가 발생했습니다.', 'error');
+                console.error('Error:', error);
+            });
+        }
+        
+        function displayNotionResults(analysis) {
+            // 업무 개수 표시
+            document.getElementById('monday-task-count').textContent = analysis.monday_tasks;
+            document.getElementById('friday-task-count').textContent = analysis.friday_tasks;
+            
+            // 상태별 업무 변화 차트
+            displayStatusChart(analysis.status_comparison);
+            
+            // 우선순위 분포 차트
+            displayPriorityChart(analysis.priority_distribution);
+            
+            // 카테고리별 업무 차트
+            displayCategoryChart(analysis.category_distribution);
+        }
+        
+        function displayStatusChart(statusData) {
+            const chartDiv = document.getElementById('status-chart');
+            let html = '<div class="status-bars">';
+            
+            for (const [status, counts] of Object.entries(statusData)) {
+                const mondayCount = counts.monday || 0;
+                const fridayCount = counts.friday || 0;
+                const change = fridayCount - mondayCount;
+                const changeClass = change > 0 ? 'increase' : change < 0 ? 'decrease' : 'same';
+                const changeText = change > 0 ? `+${change}` : change < 0 ? `${change}` : '±0';
+                
+                // 상태명에서 번호와 이모지 제거
+                const cleanStatus = status.replace(/^\d+\.\s*[🔄➕⏩⌛✅⛔⏯️]*\s*/, '');
+                
+                html += `
+                    <div class="status-item">
+                        <div class="status-name">${cleanStatus}</div>
+                        <div class="status-comparison">
+                            <div class="day-count monday">월: ${mondayCount}</div>
+                            <div class="day-count friday">금: ${fridayCount}</div>
+                            <div class="change ${changeClass}">${changeText}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            chartDiv.innerHTML = html;
+        }
+        
+        function displayPriorityChart(priorityData) {
+            const chartDiv = document.getElementById('priority-chart');
+            let html = '<div class="priority-items">';
+            
+            const sortedPriorities = Object.entries(priorityData).sort((a, b) => b[1] - a[1]);
+            
+            for (const [priority, count] of sortedPriorities) {
+                const cleanPriority = priority.replace(/[🚨🅰️🅱️©️ⓓ]+/g, '').replace(/\d+️⃣/g, '');
+                html += `
+                    <div class="priority-item">
+                        <span class="priority-name">${cleanPriority || priority}</span>
+                        <span class="priority-count">${count}개</span>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            chartDiv.innerHTML = html;
+        }
+        
+        function displayCategoryChart(categoryData) {
+            const chartDiv = document.getElementById('category-chart');
+            let html = '<div class="category-items">';
+            
+            const sortedCategories = Object.entries(categoryData).sort((a, b) => b[1] - a[1]);
+            
+            for (const [category, count] of sortedCategories) {
+                // 카테고리명에서 번호 제거
+                const cleanCategory = category.replace(/^\d+\./, '');
+                html += `
+                    <div class="category-item">
+                        <span class="category-name">${cleanCategory}</span>
+                        <span class="category-count">${count}개</span>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            chartDiv.innerHTML = html;
+        }
+
+        // 이벤트 리스너
+        document.getElementById('compare-btn').addEventListener('click', compareImages);
+        document.getElementById('notion-analyze-btn').addEventListener('click', analyzeNotionData);
+    </script>
+</body>
+</html>
