@@ -44,6 +44,10 @@ def get_uploaded_images(group):
         return []
     return [f for f in os.listdir(folder_path) if allowed_file(f)]
 
+@app.route('/health')
+def health():
+    return {'status': 'healthy', 'message': 'Service is running'}, 200
+
 @app.route('/')
 def index():
     monday_images = get_uploaded_images('monday')
@@ -361,9 +365,11 @@ def notion_analysis():
         traceback.print_exc()
         return jsonify({'error': f'노션 분석 중 오류가 발생했습니다: {str(e)}'}), 500
 
+# 앱 시작 시 디렉터리 생성
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'monday'), exist_ok=True)
+os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'friday'), exist_ok=True)
+
 if __name__ == '__main__':
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'monday'), exist_ok=True)
-    os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'friday'), exist_ok=True)
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') == 'development')
