@@ -1,4 +1,5 @@
 import os
+import sys
 import base64
 from flask import Flask, request, render_template, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
@@ -17,22 +18,30 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 
 # Anthropic 클라이언트를 초기화합니다.
-# 'proxies' 인자는 현재 버전의 Anthropic 라이브러리에서 지원되지 않으므로 제거합니다.
-# API 키는 환경 변수 'ANTHROPIC_API_KEY'에서 자동으로 로드됩니다.
+print("Starting Anthropic client initialization...")
+print(f"Python version: {sys.version}")
+print(f"Anthropic version: {anthropic.__version__}")
+
+api_key = os.environ.get("ANTHROPIC_API_KEY")
+print(f"API key exists: {bool(api_key)}")
+print(f"API key length: {len(api_key) if api_key else 0}")
+
 try:
-    client = anthropic.Anthropic(
-        api_key=os.environ.get("ANTHROPIC_API_KEY"),
-    )
+    client = anthropic.Anthropic(api_key=api_key)
     
-    # 선택 사항: API 키가 제대로 설정되었는지 확인하는 로직입니다.
-    if client.api_key is None:
-        print("Warning: ANTHROPIC_API_KEY environment variable is not set.")
-        client = None
-    else:
+    # API 키 확인
+    if hasattr(client, 'api_key') and client.api_key:
         print("Anthropic client initialized successfully")
+        print(f"Client type: {type(client)}")
+    else:
+        print("Warning: API key not properly set in client")
+        client = None
         
 except Exception as e:
     print(f"Anthropic client initialization error: {e}")
+    print(f"Error type: {type(e)}")
+    import traceback
+    traceback.print_exc()
     client = None
 
 try:
