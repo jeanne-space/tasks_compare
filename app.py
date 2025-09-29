@@ -16,9 +16,19 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 
-client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-notion = Client(auth=os.getenv('NOTION_TOKEN'))
-notion_db_id = os.getenv('NOTION_DATABASE_ID')
+try:
+    client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+except Exception as e:
+    print(f"Anthropic client initialization error: {e}")
+    client = None
+
+try:
+    notion = Client(auth=os.getenv('NOTION_TOKEN'))
+    notion_db_id = os.getenv('NOTION_DATABASE_ID')
+except Exception as e:
+    print(f"Notion client initialization error: {e}")
+    notion = None
+    notion_db_id = None
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -104,6 +114,9 @@ def upload_file():
 
 @app.route('/compare', methods=['POST'])
 def compare_images():
+    if client is None:
+        return jsonify({'error': 'Anthropic 클라이언트가 초기화되지 않았습니다. 환경변수를 확인해주세요.'}), 500
+        
     monday_images = get_uploaded_images('monday')
     friday_images = get_uploaded_images('friday')
     
