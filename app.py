@@ -17,9 +17,17 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 
 try:
-    client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    api_key = os.getenv('ANTHROPIC_API_KEY')
+    if api_key:
+        client = anthropic.Anthropic(api_key=api_key)
+        print("Anthropic client initialized successfully")
+    else:
+        print("No Anthropic API key found")
+        client = None
 except Exception as e:
     print(f"Anthropic client initialization error: {e}")
+    import traceback
+    traceback.print_exc()
     client = None
 
 try:
