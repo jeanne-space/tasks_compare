@@ -60,6 +60,23 @@ def get_uploaded_images(group):
 def health():
     return {'status': 'healthy', 'message': 'Service is running'}, 200
 
+@app.route('/debug')
+def debug():
+    anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+    notion_token = os.getenv('NOTION_TOKEN')
+    notion_db_id = os.getenv('NOTION_DATABASE_ID')
+    flask_env = os.getenv('FLASK_ENV')
+    
+    return {
+        'anthropic_key_exists': bool(anthropic_key),
+        'anthropic_key_length': len(anthropic_key) if anthropic_key else 0,
+        'anthropic_key_starts_with': anthropic_key[:10] if anthropic_key else 'None',
+        'notion_token_exists': bool(notion_token),
+        'notion_db_id_exists': bool(notion_db_id),
+        'flask_env': flask_env,
+        'client_initialized': client is not None
+    }
+
 @app.route('/')
 def index():
     monday_images = get_uploaded_images('monday')
