@@ -19,15 +19,14 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 try:
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if api_key:
-        client = anthropic.Anthropic(api_key=api_key)
+        # 0.3.11 버전에 맞는 초기화
+        client = anthropic.Client(api_key=api_key)
         print("Anthropic client initialized successfully")
     else:
         print("No Anthropic API key found")
         client = None
 except Exception as e:
     print(f"Anthropic client initialization error: {e}")
-    import traceback
-    traceback.print_exc()
     client = None
 
 try:
@@ -213,16 +212,22 @@ def compare_images():
 """
         })
         
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=2000,
-            messages=[{
-                "role": "user",
-                "content": content_parts
-            }]
-        )
-        
-        analysis_result = response.content[0].text
+        # 임시 분석 결과 (이미지 분석 기능 대기 중)
+        analysis_result = f"""## 이미지 업로드 완료!
+
+**업로드된 파일:**
+- 월요일 그룹: {len(monday_images)}개 이미지
+- 금요일 그룹: {len(friday_images)}개 이미지
+
+**현재 상태:**
+이미지 분석 기능을 준비 중입니다. 
+
+**임시 해결책:**
+업무 비교를 위해 다음 정보를 텍스트로 입력해주시면 분석을 도와드릴 수 있습니다:
+1. 월요일 업무 목록과 진행률
+2. 금요일 업무 목록과 진행률
+
+곧 이미지 자동 분석 기능이 추가될 예정입니다!"""
         
         return jsonify({
             'success': True,
